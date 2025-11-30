@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, weatherOpen }) {
+function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, weatherOpen, onFloodToggle, floodOpen }) {
   const getStatusColor = () => {
     switch (backendStatus) {
       case 'connected':
@@ -83,6 +83,21 @@ function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, we
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+          </svg>
+        </button>
+
+        {/* Flood Monitoring button */}
+        <button 
+          onClick={onFloodToggle}
+          className={`p-2 rounded-lg transition-colors ${
+            floodOpen 
+              ? 'bg-cyan-500/20 text-cyan-400' 
+              : 'hover:bg-gray-700 text-gray-400 hover:text-white'
+          }`}
+          title="Flood Monitoring"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
         </button>
 

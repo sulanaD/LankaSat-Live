@@ -103,6 +103,99 @@ export async function fetchWeatherLocations() {
   return response.json();
 }
 
+// ===== FLOOD DATA API (Sri Lanka DMC) =====
+
+/**
+ * Get comprehensive flood data summary for Sri Lanka
+ */
+export async function fetchFloodSummary() {
+  const response = await fetch(`${API_BASE_URL}/flood/summary`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch flood summary: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get all gauging stations
+ */
+export async function fetchFloodStations() {
+  const response = await fetch(`${API_BASE_URL}/flood/stations`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch flood stations: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get latest water level readings for all stations
+ */
+export async function fetchWaterLevels() {
+  const response = await fetch(`${API_BASE_URL}/flood/levels`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch water levels: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get active flood alerts
+ */
+export async function fetchFloodAlerts() {
+  const response = await fetch(`${API_BASE_URL}/flood/alerts`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch flood alerts: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get alert summary by level
+ */
+export async function fetchAlertSummary() {
+  const response = await fetch(`${API_BASE_URL}/flood/alerts/summary`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch alert summary: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get all rivers
+ */
+export async function fetchRivers() {
+  const response = await fetch(`${API_BASE_URL}/flood/rivers`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch rivers: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get station by name
+ */
+export async function fetchStation(stationName) {
+  const response = await fetch(`${API_BASE_URL}/flood/station/${encodeURIComponent(stationName)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch station: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get flood map URL
+ */
+export function getFloodMapUrl() {
+  return `${API_BASE_URL}/flood/map`;
+}
+
+/**
+ * Get station chart URL
+ */
+export function getStationChartUrl(stationName) {
+  return `${API_BASE_URL}/flood/chart/${encodeURIComponent(stationName)}`;
+}
+
 export default {
   fetchLayers,
   checkHealth,
@@ -113,5 +206,14 @@ export default {
   fetchLocationWeather,
   fetchForecast,
   fetchWeatherLocations,
+  fetchFloodSummary,
+  fetchFloodStations,
+  fetchWaterLevels,
+  fetchFloodAlerts,
+  fetchAlertSummary,
+  fetchRivers,
+  fetchStation,
+  getFloodMapUrl,
+  getStationChartUrl,
   API_BASE_URL
 };
