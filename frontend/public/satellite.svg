@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e40af;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Main satellite body -->
+  <ellipse cx="50" cy="50" rx="15" ry="10" fill="url(#grad1)" />
+  <!-- Solar panels -->
+  <rect x="10" y="45" width="25" height="10" fill="#1e40af" rx="2" />
+  <rect x="65" y="45" width="25" height="10" fill="#1e40af" rx="2" />
+  <!-- Panel lines -->
+  <line x1="15" y1="45" x2="15" y2="55" stroke="#fff" stroke-width="0.5" />
+  <line x1="22" y1="45" x2="22" y2="55" stroke="#fff" stroke-width="0.5" />
+  <line x1="29" y1="45" x2="29" y2="55" stroke="#fff" stroke-width="0.5" />
+  <line x1="70" y1="45" x2="70" y2="55" stroke="#fff" stroke-width="0.5" />
+  <line x1="77" y1="45" x2="77" y2="55" stroke="#fff" stroke-width="0.5" />
+  <line x1="84" y1="45" x2="84" y2="55" stroke="#fff" stroke-width="0.5" />
+  <!-- Antenna -->
+  <line x1="50" y1="40" x2="50" y2="25" stroke="#059669" stroke-width="2" />
+  <circle cx="50" cy="22" r="4" fill="#059669" />
+  <!-- Radar waves -->
+  <path d="M 50 60 Q 40 75 30 85" stroke="#1e40af" stroke-width="1.5" fill="none" opacity="0.6" />
+  <path d="M 50 60 Q 50 75 50 90" stroke="#1e40af" stroke-width="1.5" fill="none" opacity="0.6" />
+  <path d="M 50 60 Q 60 75 70 85" stroke="#1e40af" stroke-width="1.5" fill="none" opacity="0.6" />
+</svg>
