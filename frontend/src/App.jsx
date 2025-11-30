@@ -5,6 +5,7 @@ import Header from './components/Header';
 import LoadingOverlay from './components/LoadingOverlay';
 import Chatbot from './components/Chatbot';
 import WeatherPanel from './components/WeatherPanel';
+import FloodPanel from './components/FloodPanel';
 import { fetchLayers, checkHealth } from './services/api';
 import { SRI_LANKA_CONFIG, LAYER_CONFIG } from './services/layers';
 
@@ -18,6 +19,7 @@ function App() {
   const [backendStatus, setBackendStatus] = useState('checking');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [weatherOpen, setWeatherOpen] = useState(false);
+  const [floodOpen, setFloodOpen] = useState(false);
 
   // Initialize app
   useEffect(() => {
@@ -73,6 +75,8 @@ function App() {
         sidebarOpen={sidebarOpen}
         onWeatherToggle={() => setWeatherOpen(!weatherOpen)}
         weatherOpen={weatherOpen}
+        onFloodToggle={() => setFloodOpen(!floodOpen)}
+        floodOpen={floodOpen}
       />
       
       {/* Main content */}
@@ -129,6 +133,11 @@ function App() {
       {/* Weather Panel */}
       {weatherOpen && (
         <WeatherPanel onClose={() => setWeatherOpen(false)} />
+      )}
+      
+      {/* Flood Panel */}
+      {floodOpen && (
+        <FloodPanel onClose={() => setFloodOpen(false)} />
       )}
       
       {/* Error toast */}

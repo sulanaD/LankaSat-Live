@@ -24,6 +24,19 @@ from .weather import (
     fetch_forecast,
     SRI_LANKA_LOCATIONS
 )
+from .flood_api import (
+    fetch_stations,
+    fetch_latest_water_levels,
+    fetch_active_alerts,
+    fetch_alert_summary,
+    fetch_rivers,
+    fetch_basins,
+    fetch_station_by_name,
+    get_flood_data_summary,
+    get_stations_on_river,
+    get_flood_map_url,
+    get_station_chart_url
+)
 
 settings = get_settings()
 
@@ -433,6 +446,204 @@ async def get_weather_forecast(location: str):
             status_code=500,
             detail=f"Forecast fetch error: {str(e)}"
         )
+
+
+# ===== FLOOD DATA ENDPOINTS (Sri Lanka DMC) =====
+
+@app.get("/flood/summary")
+async def get_flood_summary():
+    """
+    Get comprehensive flood data summary for Sri Lanka.
+    Combines water level data, alerts, and risk assessment.
+    Data sourced from Sri Lanka Disaster Management Center (DMC).
+    """
+    try:
+        summary = await get_flood_data_summary()
+        return {
+            "status": "success",
+            "data": summary
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Flood data fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/stations")
+async def get_all_stations():
+    """
+    Get all gauging stations with their metadata and threshold levels.
+    Returns 39 monitoring stations across Sri Lanka.
+    """
+    try:
+        stations = await fetch_stations()
+        return {
+            "status": "success",
+            "count": len(stations),
+            "stations": stations
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Stations fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/levels")
+async def get_water_levels():
+    """
+    Get the latest water level readings for all stations.
+    This is the primary endpoint for real-time flood monitoring.
+    """
+    try:
+        levels = await fetch_latest_water_levels()
+        return {
+            "status": "success",
+            "count": len(levels),
+            "readings": levels,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Water levels fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/alerts")
+async def get_alerts():
+    """
+    Get all stations currently in ALERT, MINOR, or MAJOR status.
+    Sorted by severity: MAJOR > MINOR > ALERT
+    """
+    try:
+        alerts = await fetch_active_alerts()
+        return {
+            "status": "success",
+            "count": len(alerts),
+            "alerts": alerts,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Alerts fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/alerts/summary")
+async def get_alerts_summary():
+    """
+    Get a summary count of stations by alert level.
+    Returns count of MAJOR, MINOR, ALERT, NORMAL, NO_DATA stations.
+    """
+    try:
+        summary = await fetch_alert_summary()
+        return {
+            "status": "success",
+            "summary": summary,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Alert summary fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/rivers")
+async def get_rivers():
+    """Get all rivers with their basin assignments."""
+    try:
+        rivers = await fetch_rivers()
+        return {
+            "status": "success",
+            "count": len(rivers),
+            "rivers": rivers
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Rivers fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/basins")
+async def get_basins():
+    """Get all river basins."""
+    try:
+        basins = await fetch_basins()
+        return {
+            "status": "success",
+            "count": len(basins),
+            "basins": basins
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Basins fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/station/{station_name}")
+async def get_station(station_name: str):
+    """Get a specific station by name with its latest water level reading."""
+    try:
+        station = await fetch_station_by_name(station_name)
+        if station is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Station '{station_name}' not found"
+            )
+        return {
+            "status": "success",
+            "data": station
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Station fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/river/{river_name}/stations")
+async def get_river_stations(river_name: str):
+    """Get all stations on a specific river."""
+    try:
+        stations = await get_stations_on_river(river_name)
+        return {
+            "status": "success",
+            "river": river_name,
+            "count": len(stations),
+            "stations": stations
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"River stations fetch error: {str(e)}"
+        )
+
+
+@app.get("/flood/map")
+async def get_flood_map():
+    """Get the URL to the current flood map image from DMC."""
+    return {
+        "url": get_flood_map_url(),
+        "source": "Sri Lanka Disaster Management Center"
+    }
+
+
+@app.get("/flood/chart/{station_name}")
+async def get_station_chart(station_name: str):
+    """Get the URL to a station's water level chart."""
+    return {
+        "station": station_name,
+        "url": get_station_chart_url(station_name),
+        "source": "Sri Lanka Disaster Management Center"
+    }
 
 
 # Startup event

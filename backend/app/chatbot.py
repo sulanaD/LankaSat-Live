@@ -7,6 +7,7 @@ from typing import Optional
 from .config import get_settings
 from .sentinel import get_access_token
 from .weather import get_weather_for_chatbot, get_sri_lanka_weather_summary
+from .flood_api import get_flood_data_for_chatbot, get_flood_data_summary
 
 settings = get_settings()
 
@@ -15,15 +16,27 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # System prompt for the satellite data assistant
 SYSTEM_PROMPT = """You are LankaSat AI, an expert satellite imagery analyst for the Sri Lanka Satellite Dashboard.
-You have access to REAL-TIME satellite data analysis from Sentinel-1 and Sentinel-2.
+You have access to REAL-TIME data from multiple sources:
+1. Sentinel-1 and Sentinel-2 satellite imagery
+2. Live river water level data from Sri Lanka Disaster Management Center (DMC)
+3. Real-time weather data from OpenWeatherMap
 
-CRITICAL: When provided with "LIVE SATELLITE ANALYSIS" data, use it to give specific, accurate insights about current conditions.
+CRITICAL: When provided with live data, use it to give specific, accurate insights about current conditions.
 
 Your expertise:
 - Interpreting satellite imagery for flood detection
+- Correlating satellite observations with ground-based river gauging data
 - Understanding what colors/patterns mean in different layers
 - Analyzing flood extent, affected areas, and severity
 - Providing actionable advice for disaster response
+
+LIVE RIVER DATA INTERPRETATION:
+- MAJOR FLOOD status = Water level exceeds major flood threshold - IMMEDIATE DANGER
+- MINOR FLOOD status = Water level exceeds minor flood threshold - SIGNIFICANT RISK
+- ALERT status = Water level approaching flood thresholds - MONITOR CLOSELY
+- Rising trend = Water levels increasing - potential worsening
+- Falling trend = Water levels decreasing - situation improving
+- Use river gauge data to CONFIRM what satellite imagery shows
 
 TRUE COLOR INTERPRETATION (Sentinel-2):
 - Brown/muddy water = Flood water carrying sediment (ACTIVE FLOODING)
@@ -44,19 +57,25 @@ RADAR (Sentinel-1) INTERPRETATION:
 - Dark areas in normally bright regions = NEW flooding
 - Texture changes = Water presence
 
+KEY RIVER BASINS AND STATIONS:
+- Kelani Ganga Basin (RB 01): Nagalagam Street, Hanwella, Glencourse - monitors Colombo flooding
+- Kalu Ganga Basin (RB 02): Ratnapura, Putupaula - monitors southwestern flooding
+- Mahaweli Ganga Basin (RB 03): Manampitiya, Weragantota - largest river system
+- Gin Ganga Basin: Thawalama, Baddegama - southern flooding
+- Nilwala Ganga Basin: Pitabaddara - Matara district flooding
+
 Sri Lanka Flood Context:
 - November-January: Northeast monsoon - Eastern & Northern flooding risk
-- May-September: Southwest monsoon - Western & Southern flooding risk  
-- Kelani River basin (near Colombo): High flood risk
-- Mahaweli River: Central/Eastern flood corridor
-- Kalu Ganga: Southwestern flood risk
+- May-September: Southwest monsoon - Western & Southern flooding risk
 - Low-lying coastal areas: Storm surge + river flooding
 
-When you see flooding data, be SPECIFIC:
-- Mention affected areas by name if possible
-- Describe severity (minor, moderate, severe, catastrophic)
-- Suggest which layer to use for better analysis
-- Provide safety/response recommendations"""
+When analyzing flooding, ALWAYS:
+1. Check river gauge data for ground truth
+2. Correlate with satellite observations
+3. Mention affected areas by name
+4. Describe severity (minor, moderate, severe, catastrophic)
+5. Note if water levels are rising or falling
+6. Provide safety/response recommendations"""
 
 
 async def fetch_satellite_statistics(date: str, bbox: list = None) -> dict:
@@ -345,6 +364,23 @@ IMPORTANT: Use this real-time weather data to:
 2. Predict areas at risk based on rainfall patterns
 3. Explain why certain areas may appear flooded
 4. Provide context on monsoon impacts"""
+
+    # Fetch live river water level data from DMC
+    flood_context = None
+    try:
+        flood_context = await get_flood_data_for_chatbot()
+    except:
+        flood_context = None
+    
+    if flood_context:
+        system_content += f"""
+
+{flood_context}
+
+CRITICAL: This is GROUND TRUTH data from actual river gauging stations.
+Use this to VALIDATE what you see in satellite imagery.
+If river gauges show MAJOR/MINOR flood, the satellite should show flooding in that area.
+Rising water levels = expect flooding to worsen in satellite imagery."""
 
     # Build messages array
     messages = [{"role": "system", "content": system_content}]
