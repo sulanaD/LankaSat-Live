@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, weatherOpen, onFloodToggle, floodOpen }) {
   const getStatusColor = () => {
@@ -48,7 +49,7 @@ function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, we
         </button>
 
         {/* Logo */}
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
             <span className="text-lg">🛰️</span>
           </div>
@@ -60,11 +61,30 @@ function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, we
               Sri Lanka Satellite Dashboard
             </p>
           </div>
-        </div>
+        </Link>
       </div>
 
-      {/* Right side - Status and links */}
+      {/* Right side - Status, navigation, and links */}
       <div className="flex items-center gap-4">
+        {/* Navigation Links */}
+        <nav className="hidden md:flex items-center gap-2">
+          <Link 
+            to="/shelters-map"
+            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            Shelter Map
+          </Link>
+          <Link 
+            to="/register-shelter"
+            className="px-3 py-1.5 text-sm bg-primary/20 text-primary hover:bg-primary/30 rounded-lg transition-colors"
+          >
+            + Add Shelter
+          </Link>
+        </nav>
+
+        {/* Divider */}
+        <div className="hidden md:block w-px h-6 bg-gray-700"></div>
+
         {/* API Status */}
         <div className="flex items-center gap-2 text-sm">
           <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
@@ -101,19 +121,20 @@ function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, we
           </svg>
         </button>
 
-        {/* Help button */}
-        <button 
+        {/* Login/User button */}
+        <Link 
+          to="/login"
           className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
-          title="Help"
+          title="Sign In"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-        </button>
+        </Link>
 
         {/* GitHub link */}
         <a 
-          href="https://github.com"
+          href="https://github.com/sulanaD/Sentinel-1-Weather-App"
           target="_blank"
           rel="noopener noreferrer"
           className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
