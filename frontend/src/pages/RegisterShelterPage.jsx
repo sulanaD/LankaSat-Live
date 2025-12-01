@@ -3,7 +3,7 @@
  * Allows users to register new disaster relief shelters with map-based location selection
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { useAuth } from '../context/AuthContext';
@@ -45,7 +45,7 @@ function LocationPicker({ onLocationSelect }) {
 
 function RegisterShelterPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, isGuest, user } = useAuth();
+  const { isAuthenticated, isGuest, user, loading: authLoading } = useAuth();
   
   // Form state
   const [name, setName] = useState('');
@@ -68,6 +68,30 @@ function RegisterShelterPage() {
     setLat(latitude.toFixed(6));
     setLon(longitude.toFixed(6));
   }, []);
+
+  // Redirect to home if not authenticated or is guest (after auth loading completes)
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || isGuest)) {
+      navigate('/');
+    }
+  }, [authLoading, isAuthenticated, isGuest, navigate]);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated || isGuest) {
+    return null;
+  }
 
   // Toggle amenity selection
   const toggleAmenity = (amenity) => {
@@ -141,9 +165,9 @@ function RegisterShelterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-dark">
+    <div className="min-h-screen bg-dark overflow-y-auto" style={{ height: '100vh', overflowY: 'auto' }}>
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-4 py-3">
+      <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">

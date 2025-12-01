@@ -1,7 +1,20 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, weatherOpen, onFloodToggle, floodOpen }) {
+  const { isAuthenticated, isGuest, user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    setShowUserMenu(false);
+    // Navigate to home page after logout
+    navigate('/');
+  };
+
   const getStatusColor = () => {
     switch (backendStatus) {
       case 'connected':
@@ -66,18 +79,28 @@ function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, we
 
       {/* Right side - Status, navigation, and links */}
       <div className="flex items-center gap-4">
-        {/* Navigation Links */}
+        {/* Navigation Links - Show lock icon for restricted features if not fully authenticated */}
         <nav className="hidden md:flex items-center gap-2">
           <Link 
             to="/shelters-map"
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1"
           >
+            {(!isAuthenticated || isGuest) && (
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            )}
             Shelter Map
           </Link>
           <Link 
             to="/register-shelter"
-            className="px-3 py-1.5 text-sm bg-primary/20 text-primary hover:bg-primary/30 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-sm bg-primary/20 text-primary hover:bg-primary/30 rounded-lg transition-colors flex items-center gap-1"
           >
+            {(!isAuthenticated || isGuest) && (
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            )}
             + Add Shelter
           </Link>
         </nav>
@@ -121,16 +144,70 @@ function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, we
           </svg>
         </button>
 
-        {/* Login/User button */}
-        <Link 
-          to="/login"
-          className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
-          title="Sign In"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        </Link>
+        {/* User Menu / Login Button */}
+        {isAuthenticated ? (
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
+                showUserMenu 
+                  ? 'bg-gray-700 text-white' 
+                  : 'hover:bg-gray-700 text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                isGuest ? 'bg-gray-600 text-gray-300' : 'bg-primary text-white'
+              }`}>
+                {isGuest ? 'G' : (user?.display_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+              </div>
+              <span className="hidden sm:inline text-sm">
+                {isGuest ? 'Guest' : (user?.display_name || user?.email?.split('@')[0])}
+              </span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {/* Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-1 z-50">
+                <div className="px-4 py-2 border-b border-gray-700">
+                  <p className="text-sm font-medium text-white">
+                    {isGuest ? 'Guest User' : user?.display_name || 'User'}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {isGuest ? 'Limited access' : user?.email}
+                  </p>
+                </div>
+                {isGuest && (
+                  <Link
+                    to="/register"
+                    className="block px-4 py-2 text-sm text-primary hover:bg-gray-700"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    Create Account
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Link 
+            to="/login"
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span className="hidden sm:inline">Sign In</span>
+          </Link>
+        )}
 
         {/* GitHub link */}
         <a 

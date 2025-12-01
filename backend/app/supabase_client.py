@@ -52,6 +52,9 @@ class SupabaseTable:
         self._limit_val: Optional[int] = None
         self._offset_val: Optional[int] = None
         self._count_type: Optional[str] = None
+        self._update_data: Optional[Dict[str, Any]] = None
+        self._delete_flag: bool = False
+        self._insert_data: Optional[Dict[str, Any]] = None
     
     def select(self, columns: str = "*", count: Optional[str] = None) -> 'SupabaseTable':
         """Select columns to return."""
@@ -128,11 +131,49 @@ class SupabaseTable:
             params.append(f"offset={self._offset_val}")
         return f"{self.url}?{'&'.join(params)}"
     
+    def _build_filter_url(self) -> str:
+        """Build URL with only filters (for update/delete)."""
+        if self._filters:
+            return f"{self.url}?{'&'.join(self._filters)}"
+        return self.url
+    
     def execute(self) -> 'SupabaseResponse':
-        """Execute the query."""
-        url = self._build_url()
+        """Execute the query (SELECT, UPDATE, DELETE, or INSERT)."""
         headers = self.client.headers.copy()
         
+        # Handle INSERT
+        if self._insert_data is not None:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(
+                    self.url,
+                    headers=headers,
+                    json=self._insert_data
+                )
+                response.raise_for_status()
+                return SupabaseResponse(response.json())
+        
+        # Handle UPDATE
+        if self._update_data is not None:
+            url = self._build_filter_url()
+            with httpx.Client(timeout=30.0) as client:
+                response = client.patch(
+                    url,
+                    headers=headers,
+                    json=self._update_data
+                )
+                response.raise_for_status()
+                return SupabaseResponse(response.json())
+        
+        # Handle DELETE
+        if self._delete_flag:
+            url = self._build_filter_url()
+            with httpx.Client(timeout=30.0) as client:
+                response = client.delete(url, headers=headers)
+                response.raise_for_status()
+                return SupabaseResponse(response.json() if response.text else [])
+        
+        # Handle SELECT (default)
+        url = self._build_url()
         if self._count_type:
             headers["Prefer"] = f"count={self._count_type}"
         
@@ -148,41 +189,20 @@ class SupabaseTable:
             
             return SupabaseResponse(response.json(), count)
     
-    def insert(self, data: Dict[str, Any]) -> 'SupabaseResponse':
-        """Insert a new row."""
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                self.url,
-                headers=self.client.headers,
-                json=data
-            )
-            response.raise_for_status()
-            return SupabaseResponse(response.json())
+    def insert(self, data: Dict[str, Any]) -> 'SupabaseTable':
+        """Set data for insert operation. Call execute() to run."""
+        self._insert_data = data
+        return self
     
-    def update(self, data: Dict[str, Any]) -> 'SupabaseResponse':
-        """Update rows matching filters."""
-        url = self._build_url().replace(f"select={self._select_columns}&", "").replace(f"select={self._select_columns}", "")
-        if "?" not in url:
-            url = f"{self.url}?"
-        
-        with httpx.Client(timeout=30.0) as client:
-            response = client.patch(
-                url,
-                headers=self.client.headers,
-                json=data
-            )
-            response.raise_for_status()
-            return SupabaseResponse(response.json())
+    def update(self, data: Dict[str, Any]) -> 'SupabaseTable':
+        """Set data for update operation. Call execute() after adding filters."""
+        self._update_data = data
+        return self
     
-    def delete(self) -> 'SupabaseResponse':
-        """Delete rows matching filters."""
-        params = "&".join(self._filters)
-        url = f"{self.url}?{params}" if params else self.url
-        
-        with httpx.Client(timeout=30.0) as client:
-            response = client.delete(url, headers=self.client.headers)
-            response.raise_for_status()
-            return SupabaseResponse(response.json() if response.text else [])
+    def delete(self) -> 'SupabaseTable':
+        """Mark for delete operation. Call execute() after adding filters."""
+        self._delete_flag = True
+        return self
 
 
 class SupabaseTableNot:

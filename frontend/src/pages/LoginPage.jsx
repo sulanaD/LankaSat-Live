@@ -46,7 +46,7 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex items-center justify-center px-4">
+    <div className="min-h-screen bg-dark flex items-center justify-center px-4 overflow-y-auto" style={{ height: '100vh', overflowY: 'auto' }}>
       <div className="max-w-md w-full">
         {/* Logo and Title */}
         <div className="text-center mb-8">

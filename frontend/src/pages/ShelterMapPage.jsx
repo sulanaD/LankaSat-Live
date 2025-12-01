@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useAuth } from '../context/AuthContext';
 import { getSheltersForMap, getShelterStats } from '../services/shelters';
@@ -54,7 +54,7 @@ function FlyToLocation({ center, zoom }) {
 }
 
 function ShelterMapPage() {
-  const { isAuthenticated, isGuest, user, logout } = useAuth();
+  const { isAuthenticated, isGuest, user, logout, loading: authLoading } = useAuth();
   
   const [shelters, setShelters] = useState([]);
   const [stats, setStats] = useState(null);
@@ -62,6 +62,14 @@ function ShelterMapPage() {
   const [error, setError] = useState('');
   const [selectedShelter, setSelectedShelter] = useState(null);
   const [flyTo, setFlyTo] = useState(null);
+  const navigate = useNavigate();
+
+  // Redirect to home when user logs out while on this page
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || isGuest)) {
+      navigate('/');
+    }
+  }, [authLoading, isAuthenticated, isGuest, navigate]);
 
   // Fetch shelters and stats on mount
   useEffect(() => {
@@ -96,7 +104,7 @@ function ShelterMapPage() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex flex-col">
+    <div className="h-screen bg-dark flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 z-[1001]">
         <div className="max-w-full mx-auto flex items-center justify-between">

@@ -47,8 +47,8 @@ function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-dark flex items-center justify-center px-4 overflow-y-auto" style={{ height: '100vh', overflowY: 'auto' }}>
+      <div className="max-w-md w-full py-8">
         {/* Logo and Title */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary mb-4">
