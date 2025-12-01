@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     # OpenWeatherMap API
     OPENWEATHER_API_KEY: str = ""
     
+    # Supabase Configuration (NEW non-legacy keys - NOT legacy keys)
+    # These keys use the new format: sb_publishable_* and sb_secret_*
+    SUPABASE_URL: str = "https://oamiozzalswsfmxhvybp.supabase.co"
+    SUPABASE_PUBLISHABLE_KEY: str = "sb_publishable_caw633kAGJbEGlcN5s8q_g_QjDCan8o"
+    SUPABASE_SECRET_KEY: str = "sb_secret_5DnZ4M6C8-_xW8AjaRNDXA_TFcEXi_U"
+    
+    # JWT Secret for session tokens
+    JWT_SECRET: str = "your-super-secret-jwt-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_HOURS: int = 24
+    
     # Sri Lanka bounds
     SRI_LANKA_BBOX: list = [79.4, 5.9, 82.2, 10.1]  # [west, south, east, north]
     SRI_LANKA_CENTER: list = [7.8731, 80.7718]

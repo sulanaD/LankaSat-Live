@@ -1,6 +1,6 @@
 """FastAPI main application module for LankaSat Live."""
 
-from fastapi import FastAPI, HTTPException, Query, Response, Body
+from fastapi import FastAPI, HTTPException, Query, Response, Body, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
@@ -36,6 +36,29 @@ from .flood_api import (
     get_stations_on_river,
     get_flood_map_url,
     get_station_chart_url
+)
+# Import auth and shelter modules
+from .auth import (
+    register_user,
+    login_user,
+    guest_login,
+    get_user_by_id,
+    get_current_user_from_token,
+    UserRegister,
+    UserLogin,
+    TokenResponse
+)
+from .shelters import (
+    create_shelter,
+    get_all_shelters,
+    get_shelter_by_id,
+    update_shelter,
+    delete_shelter,
+    search_shelters_by_location,
+    get_shelters_for_map,
+    get_shelter_stats,
+    ShelterCreate,
+    ShelterUpdate
 )
 
 settings = get_settings()
@@ -646,6 +669,291 @@ async def get_station_chart(station_name: str):
     }
 
 
+# ============================================
+# AUTHENTICATION ENDPOINTS
+# ============================================
+
+async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    """
+    Dependency to get current user from Authorization header.
+    Returns None if no valid token provided.
+    """
+    if not authorization:
+        return None
+    
+    # Extract token from "Bearer <token>" format
+    if authorization.startswith("Bearer "):
+        token = authorization[7:]
+    else:
+        token = authorization
+    
+    return get_current_user_from_token(token)
+
+
+async def require_auth(authorization: Optional[str] = Header(None)) -> dict:
+    """
+    Dependency that requires authentication.
+    Raises 401 if not authenticated.
+    """
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
+@app.post("/auth/register")
+async def api_register_user(user_data: UserRegister):
+    """
+    Register a new user with email and password.
+    
+    Returns access token and user info on success.
+    """
+    try:
+        result = await register_user(
+            email=user_data.email,
+            password=user_data.password,
+            display_name=user_data.display_name
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+
+@app.post("/auth/login")
+async def api_login_user(user_data: UserLogin):
+    """
+    Login with email and password.
+    
+    Returns access token and user info on success.
+    """
+    try:
+        result = await login_user(
+            email=user_data.email,
+            password=user_data.password
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+
+
+@app.post("/auth/guest")
+async def api_guest_login():
+    """
+    Create a guest session without registration.
+    
+    Guest users can register shelters but are marked with NULL added_by.
+    """
+    try:
+        result = await guest_login()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Guest login failed: {str(e)}")
+
+
+@app.get("/auth/me")
+async def api_get_current_user(current_user: dict = Depends(require_auth)):
+    """
+    Get current authenticated user info.
+    
+    Requires valid JWT token in Authorization header.
+    """
+    # For non-guest users, fetch full profile from database
+    if current_user.get("role") != "guest" and current_user.get("id"):
+        user = await get_user_by_id(current_user["id"])
+        if user:
+            return user
+    
+    return current_user
+
+
+# ============================================
+# SHELTER ENDPOINTS
+# ============================================
+
+@app.post("/shelters")
+async def api_create_shelter(
+    shelter_data: ShelterCreate,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """
+    Create a new shelter.
+    
+    Can be called by authenticated users or guests.
+    Guests can create shelters but added_by will be NULL.
+    """
+    try:
+        is_guest = current_user is None or current_user.get("role") == "guest"
+        user_id = None if is_guest else current_user.get("id")
+        
+        result = await create_shelter(
+            shelter_data=shelter_data,
+            user_id=user_id,
+            is_guest=is_guest
+        )
+        return {
+            "status": "success",
+            "message": "Shelter created successfully",
+            "shelter": result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create shelter: {str(e)}")
+
+
+@app.get("/shelters")
+async def api_get_all_shelters(
+    status: Optional[str] = Query("active", description="Filter by status: active, inactive, full"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Pagination offset")
+):
+    """
+    Get all shelters with optional filtering.
+    
+    Returns list of shelters and total count for pagination.
+    """
+    try:
+        result = await get_all_shelters(status=status, limit=limit, offset=offset)
+        return {
+            "status": "success",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch shelters: {str(e)}")
+
+
+@app.get("/shelters/map")
+async def api_get_shelters_for_map():
+    """
+    Get all active shelters formatted for map display.
+    
+    Returns minimal data needed for map markers.
+    """
+    try:
+        shelters = await get_shelters_for_map()
+        return {
+            "status": "success",
+            "count": len(shelters),
+            "shelters": shelters
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch map shelters: {str(e)}")
+
+
+@app.get("/shelters/stats")
+async def api_get_shelter_stats():
+    """
+    Get shelter statistics for dashboard.
+    
+    Returns counts by status and total capacity.
+    """
+    try:
+        stats = await get_shelter_stats()
+        return {
+            "status": "success",
+            **stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch shelter stats: {str(e)}")
+
+
+@app.get("/shelters/search")
+async def api_search_shelters(
+    lat: float = Query(..., ge=-90, le=90, description="Center latitude"),
+    lon: float = Query(..., ge=-180, le=180, description="Center longitude"),
+    radius_km: float = Query(50.0, ge=1, le=500, description="Search radius in kilometers")
+):
+    """
+    Search for shelters near a location.
+    
+    Returns shelters within the specified radius, sorted by distance.
+    """
+    try:
+        shelters = await search_shelters_by_location(lat=lat, lon=lon, radius_km=radius_km)
+        return {
+            "status": "success",
+            "count": len(shelters),
+            "center": {"lat": lat, "lon": lon},
+            "radius_km": radius_km,
+            "shelters": shelters
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to search shelters: {str(e)}")
+
+
+@app.get("/shelters/{shelter_id}")
+async def api_get_shelter(shelter_id: str):
+    """
+    Get a shelter by its ID.
+    """
+    try:
+        shelter = await get_shelter_by_id(shelter_id)
+        if not shelter:
+            raise HTTPException(status_code=404, detail="Shelter not found")
+        return {
+            "status": "success",
+            "shelter": shelter
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch shelter: {str(e)}")
+
+
+@app.put("/shelters/{shelter_id}")
+async def api_update_shelter(
+    shelter_id: str,
+    update_data: ShelterUpdate,
+    current_user: dict = Depends(require_auth)
+):
+    """
+    Update an existing shelter.
+    
+    Requires authentication. Only shelter owner can update.
+    """
+    try:
+        result = await update_shelter(
+            shelter_id=shelter_id,
+            update_data=update_data,
+            user_id=current_user.get("id")
+        )
+        return {
+            "status": "success",
+            "message": "Shelter updated successfully",
+            "shelter": result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update shelter: {str(e)}")
+
+
+@app.delete("/shelters/{shelter_id}")
+async def api_delete_shelter(
+    shelter_id: str,
+    current_user: dict = Depends(require_auth)
+):
+    """
+    Delete a shelter.
+    
+    Requires authentication. Only shelter owner can delete.
+    """
+    try:
+        await delete_shelter(shelter_id=shelter_id, user_id=current_user.get("id"))
+        return {
+            "status": "success",
+            "message": "Shelter deleted successfully"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete shelter: {str(e)}")
+
+
 # Startup event
 @app.on_event("startup")
 async def startup_event():
@@ -666,6 +974,13 @@ async def startup_event():
         print("✅ OpenWeatherMap API key configured")
     else:
         print("⚠️ OpenWeatherMap API key not set - weather features disabled")
+    
+    # Verify Supabase configuration
+    if settings.SUPABASE_URL and settings.SUPABASE_SECRET_KEY:
+        print("✅ Supabase configured (non-legacy keys)")
+        print(f"   URL: {settings.SUPABASE_URL}")
+    else:
+        print("⚠️ Supabase not configured - shelter/auth features may fail")
 
 
 # Shutdown event

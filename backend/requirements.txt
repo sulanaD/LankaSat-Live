@@ -5,3 +5,9 @@ pydantic==2.5.2
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 python-multipart==0.0.6
+# Supabase client (using new non-legacy keys)
+supabase==2.3.0
+# JWT for authentication
+PyJWT==2.8.0
+# Email validation
+email-validator==2.1.0

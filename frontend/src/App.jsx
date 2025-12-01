@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import MapView from './components/MapView';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -6,10 +7,14 @@ import LoadingOverlay from './components/LoadingOverlay';
 import Chatbot from './components/Chatbot';
 import WeatherPanel from './components/WeatherPanel';
 import FloodPanel from './components/FloodPanel';
+import LockedScreen from './components/LockedScreen';
+import { useAuth } from './context/AuthContext';
 import { fetchLayers, checkHealth } from './services/api';
 import { SRI_LANKA_CONFIG, LAYER_CONFIG } from './services/layers';
 
 function App() {
+  const { isAuthenticated, isGuest, loading: authLoading } = useAuth();
+  
   // State
   const [selectedLayer, setSelectedLayer] = useState('S2_TRUE_COLOR');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -66,6 +71,14 @@ function App() {
   // Get current layer config
   const currentLayerConfig = LAYER_CONFIG[selectedLayer] || {};
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return <LoadingOverlay />;
+  }
+
+  // Check if satellite map should be locked (not authenticated as registered user)
+  const isSatelliteMapLocked = !isAuthenticated || isGuest;
+
   return (
     <div className="h-screen w-screen flex flex-col bg-dark overflow-hidden">
       {/* Header */}
@@ -81,16 +94,18 @@ function App() {
       
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Sidebar */}
-        <Sidebar 
-          isOpen={sidebarOpen}
-          layers={layers}
-          selectedLayer={selectedLayer}
-          onLayerChange={handleLayerChange}
-          selectedDate={selectedDate}
-          onDateChange={handleDateChange}
-          currentLayerConfig={currentLayerConfig}
-        />
+        {/* Sidebar - disabled when satellite map is locked */}
+        <div className={`${isSatelliteMapLocked ? 'pointer-events-none opacity-50' : ''}`}>
+          <Sidebar 
+            isOpen={sidebarOpen}
+            layers={layers}
+            selectedLayer={selectedLayer}
+            onLayerChange={handleLayerChange}
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            currentLayerConfig={currentLayerConfig}
+          />
+        </div>
         
         {/* Map */}
         <div className="flex-1 relative">
@@ -100,23 +115,64 @@ function App() {
             config={SRI_LANKA_CONFIG}
           />
           
+          {/* Locked overlay for satellite map */}
+          {isSatelliteMapLocked && (
+            <div className="absolute inset-0 bg-dark/80 backdrop-blur-sm flex items-center justify-center z-[1001]">
+              <div className="text-center max-w-md p-6">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-800 border-2 border-gray-700 mb-4 relative">
+                  <span className="text-4xl">🛰️</span>
+                  <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-red-500 flex items-center justify-center border-2 border-gray-800">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Satellite Imagery Locked</h3>
+                <p className="text-gray-400 mb-4">
+                  {isGuest 
+                    ? "Sign in or create a free account to access real-time Sentinel satellite imagery."
+                    : "Sign in to access real-time Sentinel satellite imagery of Sri Lanka."}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Link 
+                    to="/login"
+                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link 
+                    to="/register"
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  >
+                    Create Account
+                  </Link>
+                </div>
+                <p className="text-xs text-gray-500 mt-4">
+                  Weather & Flood data are still accessible
+                </p>
+              </div>
+            </div>
+          )}
+          
           {/* Layer info overlay */}
-          <div className="absolute bottom-4 left-4 bg-dark/90 backdrop-blur-sm rounded-lg px-3 py-2 text-sm border border-gray-700 z-[1000]">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400">Layer:</span>
-              <span className="font-medium text-white">{currentLayerConfig.name}</span>
+          {!isSatelliteMapLocked && (
+            <div className="absolute bottom-4 left-4 bg-dark/90 backdrop-blur-sm rounded-lg px-3 py-2 text-sm border border-gray-700 z-[1000]">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400">Layer:</span>
+                <span className="font-medium text-white">{currentLayerConfig.name}</span>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-gray-400">Date:</span>
+                <span className="font-medium text-white">
+                  {selectedDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-gray-400">Date:</span>
-              <span className="font-medium text-white">
-                {selectedDate.toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
-                })}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
       
