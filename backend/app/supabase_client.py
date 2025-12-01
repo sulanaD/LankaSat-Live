@@ -6,33 +6,223 @@ IMPORTANT: This module uses the NEW non-legacy Supabase keys format.
 - SUPABASE_SECRET_KEY: Format 'sb_secret_*' (for server-side, full access)
 
 DO NOT use legacy keys (anon key / service_role key format).
+
+NOTE: Uses httpx REST API directly to avoid supabase-py dependency conflicts.
 """
 
-from supabase import create_client, Client
-from typing import Optional
+import httpx
+from typing import Optional, Dict, Any, List
 from .config import get_settings
 
 settings = get_settings()
 
-# Initialize Supabase client with the SECRET key for server-side operations
-# The secret key provides full database access for backend operations
-_supabase_client: Optional[Client] = None
+
+class SupabaseClient:
+    """
+    Simple Supabase REST API client using httpx.
+    Avoids dependency conflicts with supabase-py package.
+    """
+    
+    def __init__(self, url: str, key: str):
+        self.url = url.rstrip('/')
+        self.key = key
+        self.rest_url = f"{self.url}/rest/v1"
+        self.headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
+    
+    def table(self, table_name: str) -> 'SupabaseTable':
+        """Get a table query builder."""
+        return SupabaseTable(self, table_name)
 
 
-def get_supabase_client() -> Client:
+class SupabaseTable:
+    """Query builder for Supabase table operations."""
+    
+    def __init__(self, client: SupabaseClient, table_name: str):
+        self.client = client
+        self.table_name = table_name
+        self.url = f"{client.rest_url}/{table_name}"
+        self._select_columns = "*"
+        self._filters: List[str] = []
+        self._order_by: Optional[str] = None
+        self._limit_val: Optional[int] = None
+        self._offset_val: Optional[int] = None
+        self._count_type: Optional[str] = None
+    
+    def select(self, columns: str = "*", count: Optional[str] = None) -> 'SupabaseTable':
+        """Select columns to return."""
+        self._select_columns = columns
+        self._count_type = count
+        return self
+    
+    def eq(self, column: str, value: Any) -> 'SupabaseTable':
+        """Filter by equality."""
+        self._filters.append(f"{column}=eq.{value}")
+        return self
+    
+    def neq(self, column: str, value: Any) -> 'SupabaseTable':
+        """Filter by not equal."""
+        self._filters.append(f"{column}=neq.{value}")
+        return self
+    
+    def gt(self, column: str, value: Any) -> 'SupabaseTable':
+        """Filter by greater than."""
+        self._filters.append(f"{column}=gt.{value}")
+        return self
+    
+    def gte(self, column: str, value: Any) -> 'SupabaseTable':
+        """Filter by greater than or equal."""
+        self._filters.append(f"{column}=gte.{value}")
+        return self
+    
+    def lt(self, column: str, value: Any) -> 'SupabaseTable':
+        """Filter by less than."""
+        self._filters.append(f"{column}=lt.{value}")
+        return self
+    
+    def lte(self, column: str, value: Any) -> 'SupabaseTable':
+        """Filter by less than or equal."""
+        self._filters.append(f"{column}=lte.{value}")
+        return self
+    
+    def is_(self, column: str, value: Any) -> 'SupabaseTable':
+        """Filter by IS (for null checks)."""
+        self._filters.append(f"{column}=is.{value}")
+        return self
+    
+    @property
+    def not_(self) -> 'SupabaseTableNot':
+        """Return NOT filter builder."""
+        return SupabaseTableNot(self)
+    
+    def order(self, column: str, desc: bool = False) -> 'SupabaseTable':
+        """Order results."""
+        direction = "desc" if desc else "asc"
+        self._order_by = f"{column}.{direction}"
+        return self
+    
+    def limit(self, count: int) -> 'SupabaseTable':
+        """Limit results."""
+        self._limit_val = count
+        return self
+    
+    def range(self, start: int, end: int) -> 'SupabaseTable':
+        """Set range for pagination."""
+        self._offset_val = start
+        self._limit_val = end - start + 1
+        return self
+    
+    def _build_url(self) -> str:
+        """Build the request URL with query parameters."""
+        params = [f"select={self._select_columns}"]
+        params.extend(self._filters)
+        if self._order_by:
+            params.append(f"order={self._order_by}")
+        if self._limit_val is not None:
+            params.append(f"limit={self._limit_val}")
+        if self._offset_val is not None:
+            params.append(f"offset={self._offset_val}")
+        return f"{self.url}?{'&'.join(params)}"
+    
+    def execute(self) -> 'SupabaseResponse':
+        """Execute the query."""
+        url = self._build_url()
+        headers = self.client.headers.copy()
+        
+        if self._count_type:
+            headers["Prefer"] = f"count={self._count_type}"
+        
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(url, headers=headers)
+            response.raise_for_status()
+            
+            count = None
+            if self._count_type and "content-range" in response.headers:
+                range_header = response.headers.get("content-range", "")
+                if "/" in range_header:
+                    count = int(range_header.split("/")[-1])
+            
+            return SupabaseResponse(response.json(), count)
+    
+    def insert(self, data: Dict[str, Any]) -> 'SupabaseResponse':
+        """Insert a new row."""
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                self.url,
+                headers=self.client.headers,
+                json=data
+            )
+            response.raise_for_status()
+            return SupabaseResponse(response.json())
+    
+    def update(self, data: Dict[str, Any]) -> 'SupabaseResponse':
+        """Update rows matching filters."""
+        url = self._build_url().replace(f"select={self._select_columns}&", "").replace(f"select={self._select_columns}", "")
+        if "?" not in url:
+            url = f"{self.url}?"
+        
+        with httpx.Client(timeout=30.0) as client:
+            response = client.patch(
+                url,
+                headers=self.client.headers,
+                json=data
+            )
+            response.raise_for_status()
+            return SupabaseResponse(response.json())
+    
+    def delete(self) -> 'SupabaseResponse':
+        """Delete rows matching filters."""
+        params = "&".join(self._filters)
+        url = f"{self.url}?{params}" if params else self.url
+        
+        with httpx.Client(timeout=30.0) as client:
+            response = client.delete(url, headers=self.client.headers)
+            response.raise_for_status()
+            return SupabaseResponse(response.json() if response.text else [])
+
+
+class SupabaseTableNot:
+    """NOT filter builder for negated conditions."""
+    
+    def __init__(self, table: SupabaseTable):
+        self.table = table
+    
+    def is_(self, column: str, value: Any) -> SupabaseTable:
+        """Filter by IS NOT."""
+        self.table._filters.append(f"{column}=not.is.{value}")
+        return self.table
+
+
+class SupabaseResponse:
+    """Response wrapper for Supabase queries."""
+    
+    def __init__(self, data: Any, count: Optional[int] = None):
+        self.data = data if isinstance(data, list) else [data] if data else []
+        self.count = count
+
+
+# Global client instance
+_supabase_client: Optional[SupabaseClient] = None
+
+
+def get_supabase_client() -> SupabaseClient:
     """
     Get or create the Supabase client instance.
     Uses the SECRET key for full server-side access.
     
     Returns:
-        Supabase Client instance
+        SupabaseClient instance
     """
     global _supabase_client
     
     if _supabase_client is None:
         # Use SUPABASE_SECRET_KEY for server-side operations
         # This provides full access to the database
-        _supabase_client = create_client(
+        _supabase_client = SupabaseClient(
             settings.SUPABASE_URL,
             settings.SUPABASE_SECRET_KEY
         )
@@ -40,15 +230,15 @@ def get_supabase_client() -> Client:
     return _supabase_client
 
 
-def get_supabase_public_client() -> Client:
+def get_supabase_public_client() -> SupabaseClient:
     """
     Get Supabase client with publishable key.
     Use this for operations that should respect RLS policies.
     
     Returns:
-        Supabase Client instance with limited access
+        SupabaseClient instance with limited access
     """
-    return create_client(
+    return SupabaseClient(
         settings.SUPABASE_URL,
         settings.SUPABASE_PUBLISHABLE_KEY
     )
