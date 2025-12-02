@@ -103,6 +103,12 @@ function Header({ backendStatus, toggleSidebar, sidebarOpen, onWeatherToggle, we
             )}
             + Add Shelter
           </Link>
+          <Link 
+            to="/relief-directory"
+            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1"
+          >
+            🤝 Relief Directory
+          </Link>
         </nav>
 
         {/* Divider */}

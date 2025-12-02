@@ -60,6 +60,12 @@ from .shelters import (
     ShelterCreate,
     ShelterUpdate
 )
+from .relief_directory import (
+    get_relief_directory,
+    get_relief_by_category,
+    search_relief_organizations,
+    get_google_sheet_url
+)
 
 settings = get_settings()
 
@@ -952,6 +958,77 @@ async def api_delete_shelter(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete shelter: {str(e)}")
+
+
+# =====================
+# RELIEF DIRECTORY ENDPOINTS
+# =====================
+
+@app.get("/relief-directory")
+async def api_get_relief_directory(refresh: bool = Query(False, description="Force refresh from Google Sheets")):
+    """
+    Get all relief organizations from the flood relief donation directory.
+    
+    This data is sourced from a public Google Sheet and cached for 5 minutes.
+    The response includes organization details organized by category.
+    
+    For interactive features (adding/editing), users are redirected to the Google Sheet.
+    """
+    try:
+        directory = await get_relief_directory(force_refresh=refresh)
+        return directory.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch relief directory: {str(e)}")
+
+
+@app.get("/relief-directory/category/{category}")
+async def api_get_relief_by_category(
+    category: str,
+):
+    """
+    Get relief organizations filtered by category.
+    
+    Available categories: general, animal_rescue, meals, overseas
+    """
+    try:
+        result = await get_relief_by_category(category)
+        if not result.get("success"):
+            raise HTTPException(status_code=404, detail=result.get("error"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch category: {str(e)}")
+
+
+@app.get("/relief-directory/search")
+async def api_search_relief(
+    q: str = Query(..., min_length=2, description="Search query")
+):
+    """
+    Search relief organizations by name, location, or items.
+    
+    Searches across all categories and returns matching organizations.
+    """
+    try:
+        result = await search_relief_organizations(q)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@app.get("/relief-directory/sheet-url")
+async def api_get_sheet_url():
+    """
+    Get the Google Sheet URL for users who want to interact with the directory.
+    
+    Since this is a read-only view, users who want to add or edit entries
+    should be redirected to the actual Google Sheet.
+    """
+    return {
+        "url": get_google_sheet_url(),
+        "message": "To add or edit relief organizations, please use the Google Sheet directly."
+    }
 
 
 # Startup event
