@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import RegisterShelterPage from './pages/RegisterShelterPage'
 import ShelterMapPage from './pages/ShelterMapPage'
+import ReliefDirectoryPage from './pages/ReliefDirectoryPage'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/register-shelter" element={<RegisterShelterPage />} />
           <Route path="/shelters-map" element={<ShelterMapPage />} />
+          <Route path="/relief-directory" element={<ReliefDirectoryPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
