@@ -3,7 +3,10 @@
  * Handles all communication with the backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Prefer a relative `/api` path in production so frontend and serverless
+// backend can be hosted together on Vercel. When developing locally, set
+// `VITE_API_URL` to `http://localhost:8000` or leave unset to use the dev server.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Fetch available layers from the backend

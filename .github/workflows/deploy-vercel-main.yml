@@ -1,0 +1,29 @@
+name: Deploy to Vercel (main branch)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  vercel-deploy:
+    name: Vercel Deploy (main)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel (main)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Deploy linked project; to deploy as production add --prod
+          vercel --token "$VERCEL_TOKEN" --confirm
