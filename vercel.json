@@ -13,7 +13,7 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.py" },
-    { "src": "/(.*)", "dest": "/frontend/dist/$1" },
-    { "src": "/(.*)", "dest": "/frontend/dist/index.html" }
+    { "src": "^/(.*)$", "dest": "/$1" },
+    { "src": "^/(.*)$", "dest": "/index.html" }
   ]
 }
